@@ -37,8 +37,6 @@ type Random struct {
 
 type RypResource struct{}
 
-var globalKey, _ = base64.StdEncoding.DecodeString("BkosO/uLGUUcYDeA23I9y0TIbLI+iKid7AJRIgj5Amc=")
-
 func (u RypResource) Register(container *restful.Container) {
 	ws := new(restful.WebService)
 
