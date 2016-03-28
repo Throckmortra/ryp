@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/emicklei/go-restful"
@@ -59,9 +58,6 @@ func (u RypResource) Register(container *restful.Container) {
 		Operation("deryp").
 		Reads(Deryp{}))
 
-	ws.Route(ws.GET("/test").To(u.test).
-		Operation("test"))
-
 	container.Add(ws)
 }
 
@@ -72,13 +68,13 @@ func (u RypResource) random(request *restful.Request, response *restful.Response
 
 	_, err := rand.Read(key)
 	if err != nil {
-		response.WriteErrorString(http.StatusInternalServerError, "#1 "+err.Error())
+		response.WriteErrorString(http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	sEnc := base64.StdEncoding.EncodeToString(key)
 	if err != nil {
-		response.WriteErrorString(http.StatusInternalServerError, "#2 "+err.Error())
+		response.WriteErrorString(http.StatusInternalServerError, err.Error())
 		return
 	}
 	rando.RanStr = sEnc
@@ -91,14 +87,15 @@ func (u RypResource) crypt(request *restful.Request, response *restful.Response)
 	err := request.ReadEntity(ryp)
 
 	if err != nil {
-		response.WriteErrorString(http.StatusInternalServerError, "#3 "+err.Error())
+		response.WriteErrorString(http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	key, _ := base64.StdEncoding.DecodeString(ryp.Key)
 	ciphertxt, err := encrypt(key, []byte(ryp.Input))
 	if err != nil {
-		response.WriteErrorString(http.StatusInternalServerError, "#4 "+err.Error())
+		response.WriteErrorString(http.StatusInternalServerError, err.Error())
+		return
 	}
 
 	respond := new(RypOutput)
@@ -136,24 +133,21 @@ func (u RypResource) deryp(request *restful.Request, response *restful.Response)
 
 	err := request.ReadEntity(dryp)
 	if err != nil {
-		response.WriteErrorString(http.StatusInternalServerError, "#5 "+err.Error())
+		response.WriteErrorString(http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	log.Printf("undecoded key string is " + dryp.Key)
 	key, err := base64.StdEncoding.DecodeString(dryp.Key)
 	if err != nil {
-		response.WriteErrorString(http.StatusInternalServerError, "#6 "+err.Error())
+		response.WriteErrorString(http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	n, err := base64.StdEncoding.Decode(dryp.Input, dryp.Input)
-
-	log.Printf("the input is " + string(dryp.Input) + " this many bytes: " + string(n))
+	base64.StdEncoding.Decode(dryp.Input, dryp.Input)
 
 	output, err := decrypt(key, dryp.Input)
 	if err != nil {
-		response.WriteErrorString(http.StatusInternalServerError, "#7 "+err.Error())
+		response.WriteErrorString(http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -186,28 +180,4 @@ func decrypt(key, ciphertext []byte) (plaintext []byte, err error) {
 	plaintext = ciphertext
 
 	return
-}
-
-//test
-func (u RypResource) test(request *restful.Request, response *restful.Response) {
-
-	var ciphertext, plaintext []byte
-	var err error
-
-	var key = globalKey
-	plaintext = []byte("This is the unecrypted data. Referring to it as plain text.")
-
-	if ciphertext, err = encrypt(key, plaintext); err != nil {
-		log.Fatal(err)
-	}
-
-	var asdf []byte
-	if asdf, err = decrypt(key, ciphertext); err != nil {
-		log.Fatal(err)
-	}
-
-	respond := new(DerypOutput)
-	respond.Decrypted = string(asdf)
-
-	response.WriteEntity(respond)
 }
